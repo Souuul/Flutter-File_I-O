@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FileApp extends StatefulWidget {
   @override
@@ -9,11 +10,53 @@ class FileApp extends StatefulWidget {
 
 class _FileApp extends State<FileApp> {
   int _count = 0;
+  List<String> itemList = new List.empty(growable: true);
+  TextEditingController controller = new TextEditingController();
+
 
   @override
   void initState() {
     super.initState();
     readCountFile();
+    initData();
+  }
+
+  void initData() async {
+    var result = await readListFile();
+    setState(() {
+      itemList.addAll(result);
+    });
+  }
+
+
+  Future<List<String>> readListFile() async {
+    List<String> itemList = new List.empty(growable: true);
+    var key = 'first';
+    SharedPreferences pref = await SharedPreferences.getInstance();
+    bool? firstCheck = pref.getBool(key);
+    var dir = await getApplicationDocumentsDirectory();
+    bool fileExist = await File(dir.path + '/fluit.txt').exists();
+
+    if (firstCheck == null || firstCheck == false || fileExist == false) {
+      pref.setBool(key, true);
+      var file =
+      await DefaultAssetBundle.of(context).loadString('repo/fluit.txt');
+      File(dir.path + '/fluit.txt').writeAsStringSync(file);
+
+      var array = file.split('\n');
+      for (var item in array) {
+        print(item);
+        itemList.add(item);
+      }
+      return itemList;
+    } else {
+      var file = await File(dir.path + '/fluit.txt').readAsString();
+      var array = file.split('\n');
+      for (var item in array) {
+        itemList.add(item);
+      }
+      return itemList;
+    }
   }
 
 
@@ -27,22 +70,42 @@ class _FileApp extends State<FileApp> {
       ),
       body: Container(
         child: Center(
-          child: Text(
-            '$_count',
-            style: TextStyle(fontSize: 40),
+          child: Column(
+            children: <Widget>[
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.text,
+              ),
+              Expanded(child: ListView.builder(itemBuilder: (context, index) {
+                return Card(
+                  child: Center(
+                    child: Text(
+                      itemList[index],
+                      style: TextStyle(fontSize: 30),
+                    ),
+                  ),
+                );
+              }, itemCount: itemList.length,
+              ))
+            ],
           ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          setState(() {
-            _count++;
-          });
-          writeCountFile(_count);
-        },
-        child: Icon(Icons.add),
-      ),
+      ), floatingActionButton: FloatingActionButton(
+      onPressed: () {
+        writeFluit(controller.value.text);
+        setState(() {
+          itemList.add(controller.value.text);
+        });
+      }, child: Icon(Icons.add),
+    ),
     );
+  }
+
+  void writeFluit(String fluit) async {
+    var dir = await getApplicationDocumentsDirectory();
+    var file = await File(dir.path +'/fluit.txt').readAsString();
+    file = file + '\n' + fluit;
+    File(dir.path + '/fluit.txt').writeAsStringSync(file);
   }
 
   void writeCountFile(int count) async {
